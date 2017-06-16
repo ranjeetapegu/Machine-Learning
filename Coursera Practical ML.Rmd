@@ -1,0 +1,221 @@
+---
+title: "Coursera Practical Machine Learning Project"
+author: "Ranjeeta"
+date: "6/15/2017"
+output: md_document
+---
+
+# Introduction
+
+Human Activity Recognition- **HAR** includes tracking and recognizing from simple human activities like walking, running to more complex activities like cooking,cleaning, etc. in a real life setting. Recognizing and monitoring human activities is very crucial to provide smarter and effective assistance in different fields of life. As an example, say providing health care assistance to elderly people, physically/mentally disable people, or even children. 
+
+With the invention of smartphones and wearable devices like Jawbone Up, Nike FuelBand, and Fitbit collecting HAR data is much simpler, effective and inexpensive but the big challenge is how to effective utilize the data, how to find a pattern in the measurement taken from these type of devices to improve the health and fitness of the user. Most of the research on activity recognition mainly focuses on predicting "type of activity" rather than predicting the quality or "how well the activity is performed". In this project, my goal will be to use data from accelerometers on the belt, forearm, arm, and dumbbell of 6 participants and create a model that can predict whether the barbell lifts is correct or incorrect. This project is inspired by the paper [Qualitative Activity Recognition of Weight Lifting Exercises](http://groupware.les.inf.puc-rio.br/har) by *Velloso, Gellersen,Ugulino,Bulling,Fulks*
+
+
+## Data Description
+
+Participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to specification(classe A), throwing the elbows to the front(Classe B), lifting the dumbbell only half(classe C),lowering the dumbbell only halfway(classe D) and throwing the hips to front( Classe E). Classe A is correct way of doing the lifting exercise and rest all are incorrect way of doing it.
+Age of participant aged between **20-28** years and weight of dumbbell **1.25kg**.
+
+##Data Cleansing and Processing.
+
+The training and testing data set is download from the csv files [pml-testing.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) and [pml-training.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv) into Train_data and Test_data
+
+```{r, echo = FALSE, warning = FALSE, message= FALSE}
+
+download.file(url="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",
+              destfile ="pml-training.csv",method="curl")
+download.file(url="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",
+              destfile ="pml-testing.csv",method="curl")
+```
+
+
+```{r,echo= FALSE}
+Train_data  <- read.csv("pml-training.csv", header=TRUE)
+Test_data <-read.csv("pml-testing.csv",header=TRUE)
+
+```
+
+The Train_data dataset has 19622 observation and 160  variables while the Test_data has 20 observations
+
+The dataset has 160 variables, all the variables may not necessarily influence the prediction values **classe**. Before working on model development process, lets trim and cleanse the data .
+
+It is a good idea to drop all the variables that does not effect the outcome variable like user_name,timestamps, X (indicates the row number). Column 1 to 7 is removed.
+
+```{r,echo= FALSE, warning = FALSE, message= FALSE}
+#remove all columns on which outcome is not dependent from training data 
+wl_data <- Train_data[,-(1:7)]
+dim(wl_data)
+```
+
+**Zero and near-zero variance predictors**  
+Constant and almost constant predictors across samples are called zero and near-zero variance predictors. This kind of predictor is not only non-informative, it can break some models you may want to fit to your data. Lets remove all the zero and near-zero variance using the 
+
+```{r, warning = FALSE, message=FALSE}
+library(randomForest)
+library(caret)
+nzv1 <- nearZeroVar(wl_data)
+filter_Wl_data <- wl_data[, -nzv1]
+dim(filter_Wl_data)
+````
+
+
+**Removing the NAs**  
+
+The NA or missing values may give errors during the training of models, if it is not handled properly. Lets remove all the columns where more 90% of the data is NA, using the describe() function in psych package
+
+```{r,warning = FALSE, message=FALSE}
+library(psych)
+d <- describe(filter_Wl_data)
+p <- d[d$n/dim(filter_Wl_data)[1] < 0.1,1]
+final_data <- filter_Wl_data[,-p]
+dim(final_data)
+```
+
+
+Partitioning the data into two set training test and testing test to train modelas and validate it. 75% of data as training data and remaining 25% as testing data.
+
+
+```{r, warning = FALSE, message=FALSE}
+library(caret)
+set.seed(1117)
+dtrain <- createDataPartition(final_data$classe,
+                              p=0.75, list = FALSE)
+training <- final_data[dtrain,]
+testing <- final_data[-dtrain,]
+dim(training); dim(testing)
+```
+ 
+### Data Visualization
+
+It important here to visualized the data and see if we can see some concrete patterns that distinguise one class from the other classes.
+ 
+I wanted to see the average roll_belt data for each weight lifting class. So I plotted the roll_belt versus their index.
+
+```{r,echo= FALSE}
+
+qplot( seq(1:length(training$roll_belt)),
+       roll_belt, colour= classe, data= training,
+       xlab= "index")
+````
+
+From the above plot, the only thing that can be infered is that, if the roll_belt measurement is more than 130 or if it is negative value the weight lifting classes is most likely incorrect (classe E or Classe E and D respectively).
+
+Lets plot some more variables, to  get some more insight about the data
+
+```{r,echo= FALSE}
+qplot( yaw_belt, pitch_forearm,
+       colour= classe, data= training,
+       main="Classes of weight lifting exercise")
+```
+
+Definitely, we see patterns when we plot variable *yaw_belt* versus variable *pitch_forearm*. Lets explore different classification algorithms to see which are important variables and which is the best model.
+
+## Prediction Algorithms
+
+In this project, I have tried four different classification models : Decision trees,Linear discriminant analysis,Generalized Boosted Regression Modeling and Random forest. I computed the accuracy for each of these models. The best classification model for this probelm was selected the predicting the Test_Data set.
+
+### Decision Tree
+
+
+Lets start with a Decision tree  model forcalssification. It is one most common and simplest classification algorithm. I use the rpart() functio to create the decision tree.
+
+```{r, echo= FALSE,warning = FALSE, message=FALSE}
+set.seed(1118)
+library(rpart); library(rpart.plot);
+dt_mdl <- rpart(classe~., data = training)
+rpart.plot(dt_mdl, type=2,extra=104)
+pred <- predict(dt_mdl,newdata=testing, type='class')
+confusionMatrix(pred ,testing$classe)$overall[1]
+
+```
+
+The accuracy is `r confusionMatrix(pred ,testing$classe)$overall[1]`.
+
+### Linear discriminant analysis (LDA)
+
+LDA is a Classification algorithm to find a linear combination of features that characterizes or seperates two or more classes of objects or events. It is best to use when classification has more than 2 classes. 
+
+```{r,echo= FALSE, warning = FALSE, message=FALSE}
+library(MASS)
+set.seed(1119)
+lda_mdl= lda(classe~.,data =training)
+pred_lda <- predict(lda_mdl, testing)
+confusionMatrix(pred_lda$class ,testing$classe)$overall[1]
+```
+
+### Generalized Boosted Regression Modeling (gbm)  
+It fits generalized boosted regression models.
+
+```{r, echo= FALSE,warning = FALSE, message=FALSE}
+library(gbm)
+set.seed(1120)
+gbm_mdl <- gbm(classe~., data = training,
+               distribution = "multinomial" ,
+               verbose= FALSE)
+pred_gbm <- predict(gbm_mdl, testing, n.trees= 100)
+p.predBST <- apply(pred_gbm, 1, which.max)
+p.predBST[p.predBST =="1"] <- 'A'
+p.predBST[p.predBST =="2"] <- 'B'
+p.predBST[p.predBST =="3"] <- 'C'
+p.predBST[p.predBST =="4"] <- 'D'
+p.predBST[p.predBST =="5"] <- 'E'
+confusionMatrix(p.predBST,testing$classe)$overall[1]
+```
+
+
+### Random Tree 
+
+Random Forest is an extension of the decision tree algorithm. The core Idea behind Ranodm Forest is to generate multiple small decision trees from random subsets of data.
+ 
+```{r,echo= FALSE, warning = FALSE, message=FALSE}
+set.seed(1121)
+rf_mdl = randomForest(classe~., data = training)
+#print the model
+rf_mdl
+```
+Number of trees used in the fores is 500, which is default. The number of predictive variables considered at each split within a tree is 7.
+
+The random forest iteratively uses a different subset of the data to make multiple decision trees. At each iteration, the tree created using the subset is tested with the data that is not used to create the tree. The average of errors of all these interactions is the Out of Bag Error (**OOB**). For this model OOB error is 0.46%
+
+Lets use the plot() function in random Forest.
+This plot helps decide how many trees to have in the model. On the y-axis is the error of the model and the x-axis is the number of trees used.
+
+```{r,echo= FALSE}
+plot(rf_mdl)
+legend("top", colnames(rf_mdl$err.rate),col=1:6,cex=1.2,fill=1:6)
+```
+
+The red, green, blue, aqua, pink curves is for  classe A,B,C, D,E respectively while the black curve is the Out-of-Bag error rate. 
+when using between 0 - 20 trees the error remains quite high, but drops and flattens out at around 60 trees. There is no additional drop for any classes after 100 trees, therefore no need to include additional trees to the model. 
+
+
+The variable importance plot gives the importance of each variable  when classifying the data. The mean decrease gini is a measure of how each variable contributes to the purity on each node in a tree.
+
+```{r,echo= FALSE}
+varImpPlot(rf_mdl)
+```
+
+From the plot above, the most important variable as per the random forest model above is roll_belt.
+
+Lets predict the testing data and compute the accuracy.
+
+```{r,echo= FALSE}
+pred_rf <- predict(rf_mdl, testing)
+confusionMatrix(pred_rf ,testing$classe)
+```
+ The model accuracy is 0.99 , which is more than any other model
+ 
+### Final Model
+
+As the random forest model gives the best prediction, I will use this model to predict the classification for Test_data.
+
+**Predicting the data set**
+
+```{r,echo= FALSE}
+pred_test_data <- predict(rf_mdl, Test_data)
+```
+ 
+The predicted outcome for the Test_data set using the RandomForest Model is **`r pred_test_data`**
+
+
