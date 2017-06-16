@@ -261,5 +261,7 @@ model to predict the classification for Test\_data.
 
 **Predicting the data set**
 
+    ## [1] "factor"
+
 The predicted outcome for the Test\_data set using the RandomForest
 Model is **B, A, B, A, A, E, D, B, A, A, B, C, B, A, E, E, A, B, B, B**

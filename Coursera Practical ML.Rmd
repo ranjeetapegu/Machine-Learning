@@ -214,7 +214,16 @@ As the random forest model gives the best prediction, I will use this model to p
 
 ```{r,echo= FALSE}
 pred_test_data <- predict(rf_mdl, Test_data)
+# reading the predicted value in csv file
+class(pred_test_data)
+c <- cbind(Test_data,pred_test_data)
+New_Test_data <- c[,-160]
+write.csv(New_Test_data, file = "new-pml-test.csv")
 ```
+
+
+
+
  
 The predicted outcome for the Test_data set using the RandomForest Model is **`r pred_test_data`**
 
