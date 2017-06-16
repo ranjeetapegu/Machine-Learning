@@ -261,7 +261,13 @@ model to predict the classification for Test\_data.
 
 **Predicting the data set**
 
-    ## [1] "factor"
+    pred_test_data <- predict(rf_mdl, Test_data)
+
+    # reading the predicted value in csv file
+
+    c <- cbind(Test_data,pred_test_data)
+    New_Test_data <- c[,-160]
+    write.csv(New_Test_data, file = "new-pml-test.csv")
 
 The predicted outcome for the Test\_data set using the RandomForest
 Model is **B, A, B, A, A, E, D, B, A, A, B, C, B, A, E, E, A, B, B, B**
