@@ -1,0 +1,7 @@
+This is project for coursera practical Machine learning by John Hopkins. 
+The goal of the project is to predict the manner in which six different person did the weight lifting exercise. 
+There is a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. 
+The model use predict 20 different test cases.
+
+Link to view html : https://cdn.rawgit.com/ranjeetapegu/Machine-Learning/master/Coursera_Practical_ML.html
+https://github.com/ranjeetapegu/Machine-Learning/blob/master/Coursera_Practical_ML.md
